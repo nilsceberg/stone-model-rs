@@ -50,7 +50,7 @@ pub fn run_homing_trial(cx: &mut CX<impl Config>, random: &Random, setup: &Setup
     };
 
     // Simulate the agent flying along it
-    for state in &physical_states {
+    for state in &physical_states[..physical_states.len()-1 /* leave last state for start of homing */] {
         cx.update(&state);
     }
 
