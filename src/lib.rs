@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::marker::PhantomData;
 
 use model::{
@@ -118,7 +119,7 @@ pub fn create_weight_logistic_cx<'a>(
     let dynamics = LogisticDynamics { h };
     CX::new(
         random,
-        0.15,
+        0.2,
         memory::weights::StatelessCpu4::new(beta),
         memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1A, WeightMatrix::repeat(w0)),
         memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1B, WeightMatrix::repeat(w0)),
@@ -126,6 +127,7 @@ pub fn create_weight_logistic_cx<'a>(
     )
 }
 
+#[derive(Clone, Serialize)]
 pub struct Setup {
     pub inbound_steps: usize,
     pub outbound_steps: usize,
@@ -148,7 +150,9 @@ impl Setup {
     }
 }
 
+#[derive(Serialize)]
 pub struct FlightData {
+    pub setup: Setup,
     pub physical_states: Vec<PhysicalState>,
     pub memory_record: Option<Vec<SVector<f32, N_CPU4>>>,
 }
@@ -191,6 +195,7 @@ pub fn run_homing_trial<C: Config>(
     }
 
     FlightData {
+        setup: setup.clone(),
         physical_states,
         memory_record,
     }

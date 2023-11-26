@@ -1,4 +1,4 @@
-use stone_model::{movement::reconstruct_path, util::Random, *};
+use stone_model::{util::Random, *};
 
 fn main() {
     let random = Random::new(0.1, 0.0, COMMON_SEED);
@@ -11,10 +11,12 @@ fn main() {
         record_memory: true,
     };
 
+    //let (h, w0, beta) = (0.012742752, 6.1584935e-5, 0.2368421);
+    let (h, w0, beta) = (0.007847599, 6.1584935e-5, 0.42631575);
+
     let outbound = setup.generate_outbound(&random);
-    let mut cx = create_weight_logistic_cx(&random, 0.0127, 6.16E-5, 0.24);
+    let mut cx = create_weight_logistic_cx(&random, h, w0, beta);
     let result = run_homing_trial(&setup, &mut cx, outbound);
 
-    println!("{:?}", reconstruct_path(&result.physical_states));
-    //println!("{:?}", result.memory_record.unwrap());
+    println!("{}", serde_json::to_string(&result).unwrap());
 }

@@ -1,6 +1,7 @@
 use nalgebra::{DVector, SVector, Vector2};
 use rand::{distributions::Distribution, Rng};
 use rand_distr::Normal;
+use serde::Serialize;
 
 pub const DEFAULT_ACCELERATION: f32 = 0.15;
 pub const DEFAULT_DRAG: f32 = 0.15;
@@ -9,6 +10,20 @@ pub const DEFAULT_DRAG: f32 = 0.15;
 pub struct PhysicalState {
     pub velocity: Vector2<f32>,
     pub heading: f32,
+}
+
+impl Serialize for PhysicalState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeTuple;
+        let mut tuple = serializer.serialize_tuple(3)?;
+        tuple.serialize_element(&self.velocity[0])?;
+        tuple.serialize_element(&self.velocity[1])?;
+        tuple.serialize_element(&self.heading)?;
+        tuple.end()
+    }
 }
 
 impl PhysicalState {

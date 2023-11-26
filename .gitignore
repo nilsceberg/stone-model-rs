@@ -1,6 +1,7 @@
 /target
 /data
 /figures
+__pycache__
 .vscode
 .ipynb_checkpoints
 *.ipynb
