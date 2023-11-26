@@ -20,24 +20,23 @@ pub trait Config {
 }
 
 pub struct CX<'a, C: Config> {
-    w_cl1_tb1: StaticWeights<N_TB1, N_CL1>,
-    w_tb1_tb1: StaticWeights<N_TB1, N_TB1>,
-    w_tb1_cpu1a: StaticWeights<{ N_CPU1A }, { N_TB1 }>,
-    w_tb1_cpu1b: StaticWeights<{ N_CPU1B }, { N_TB1 }>,
-    w_tb1_cpu4: StaticWeights<{ N_CPU4 }, { N_TB1 }>,
-    _w_tn1_cpu4: StaticWeights<{ N_CPU4 }, { N_TN1 }>,
-    w_tn2_cpu4: StaticWeights<{ N_CPU4 }, { N_TN2 }>,
-    w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
-    w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
-    w_cpu4_pontine: C::Cpu4PontineWeights,
-    w_cpu1a_motor: StaticWeights<2, { N_CPU1A }>,
-    w_cpu1b_motor: StaticWeights<2, { N_CPU1B }>,
+    pub w_cl1_tb1: StaticWeights<N_TB1, N_CL1>,
+    pub w_tb1_tb1: StaticWeights<N_TB1, N_TB1>,
+    pub w_tb1_cpu1a: StaticWeights<{ N_CPU1A }, { N_TB1 }>,
+    pub w_tb1_cpu1b: StaticWeights<{ N_CPU1B }, { N_TB1 }>,
+    pub w_tb1_cpu4: StaticWeights<{ N_CPU4 }, { N_TB1 }>,
+    pub w_tn1_cpu4: StaticWeights<{ N_CPU4 }, { N_TN1 }>,
+    pub w_tn2_cpu4: StaticWeights<{ N_CPU4 }, { N_TN2 }>,
+    pub w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
+    pub w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
+    pub w_cpu4_pontine: C::Cpu4PontineWeights,
+    pub w_cpu1a_motor: StaticWeights<2, { N_CPU1A }>,
+    pub w_cpu1b_motor: StaticWeights<2, { N_CPU1B }>,
+    pub w_pontine_cpu1a: StaticWeights<{ N_CPU1A }, { N_PONTINE }>,
+    pub w_pontine_cpu1b: StaticWeights<{ N_CPU1B }, { N_PONTINE }>,
 
-    w_pontine_cpu1a: StaticWeights<{ N_CPU1A }, { N_PONTINE }>,
-    w_pontine_cpu1b: StaticWeights<{ N_CPU1B }, { N_PONTINE }>,
-
-    tb1: ActivityVector<N_TB1>,
-    cpu4_layer: C::Cpu4Layer,
+    pub tb1: ActivityVector<N_TB1>,
+    pub cpu4_layer: C::Cpu4Layer,
 
     turn_sharpness: f32,
 
@@ -63,7 +62,7 @@ impl<'a, C: Config> CX<'a, C> {
             w_tb1_cpu1b: StaticWeights::noisy(random, &connectomics::W_TB1_CPU1B),
             w_tb1_cpu4: StaticWeights::noisy(random, &connectomics::W_TB1_CPU4),
 
-            _w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
+            w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
             w_tn2_cpu4: StaticWeights::noisy(random, &connectomics::W_TN2_CPU4),
 
             w_cpu4_cpu1a,
