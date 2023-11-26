@@ -1,11 +1,11 @@
-use stone_model::{model::network::Noise, *};
+use stone_model::{util::Random, *};
 
 fn main() {
     let duration = std::time::Duration::from_secs(10);
     let now = std::time::Instant::now();
     let then = now + duration;
 
-    let noise = Noise::new(0.1, 0.0);
+    let random = Random::new(0.1, 0.0);
     let setup = Setup {
         outbound_steps: 1500,
         inbound_steps: 1500,
@@ -16,8 +16,8 @@ fn main() {
 
     let mut times = 0;
     while std::time::Instant::now() < then {
-        let mut cx = create_reference_cx(&noise);
-        run_homing_trial(&mut cx, &setup);
+        let mut cx = create_reference_cx(&random);
+        run_homing_trial(&mut cx, &random, &setup);
         times += 1;
     }
 

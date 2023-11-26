@@ -7,7 +7,7 @@ pub mod network;
 use nalgebra::{matrix, SVector, Vector2};
 use ndarray::{prelude::*, Axis};
 
-use crate::movement::PhysicalState;
+use crate::{movement::PhysicalState, util::Random};
 use constants::{N_CL1, N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE, N_TB1, N_TL2, N_TN1, N_TN2};
 use network::*;
 
@@ -29,13 +29,13 @@ impl Layer<{ N_CPU4 }> for AbstractCpu4 {
     fn update(
         &mut self,
         input: ActivityVector<{ N_CPU4 }>,
-        noise: &Noise,
+        random: &Random,
     ) -> ActivityVector<{ N_CPU4 }> {
         let mem_update = input.map(|x| x.clamp(0.0, 1.0) - CPU4_MEM_FADE);
         self.memory =
             (&self.memory + mem_update * constants::CPU4_MEM_GAIN).map(|x| x.clamp(0.0, 1.0));
 
-        noise.noisy_sigmoid(
+        random.noisy_sigmoid(
             &self.memory,
             constants::CPU4_SLOPE_TUNED,
             constants::CPU4_BIAS_TUNED,
@@ -74,12 +74,12 @@ pub struct CX<'a, C: Config> {
 
     tn_prefs: f32,
     tl2_prefs: SVector<f32, { N_TL2 }>,
-    noise: &'a Noise,
+    random: &'a Random,
 }
 
 impl<'a, C: Config> CX<'a, C> {
     pub fn new(
-        noise: &'a Noise,
+        random: &'a Random,
         turn_sharpness: f32,
         cpu4: C::Cpu4Layer,
         w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
@@ -87,25 +87,25 @@ impl<'a, C: Config> CX<'a, C> {
         w_cpu4_pontine: C::Cpu4PontineWeights,
     ) -> Self {
         CX {
-            w_cl1_tb1: StaticWeights::noisy(noise, &connectomics::W_CL1_TB1),
+            w_cl1_tb1: StaticWeights::noisy(random, &connectomics::W_CL1_TB1),
 
-            w_tb1_tb1: StaticWeights::noisy(noise, &connectomics::generate_tb_tb_weights()),
-            w_tb1_cpu1a: StaticWeights::noisy(noise, &connectomics::W_TB1_CPU1A),
-            w_tb1_cpu1b: StaticWeights::noisy(noise, &connectomics::W_TB1_CPU1B),
-            w_tb1_cpu4: StaticWeights::noisy(noise, &connectomics::W_TB1_CPU4),
+            w_tb1_tb1: StaticWeights::noisy(random, &connectomics::generate_tb_tb_weights()),
+            w_tb1_cpu1a: StaticWeights::noisy(random, &connectomics::W_TB1_CPU1A),
+            w_tb1_cpu1b: StaticWeights::noisy(random, &connectomics::W_TB1_CPU1B),
+            w_tb1_cpu4: StaticWeights::noisy(random, &connectomics::W_TB1_CPU4),
 
-            w_tn1_cpu4: StaticWeights::noisy(noise, &connectomics::W_TN1_CPU4),
-            w_tn2_cpu4: StaticWeights::noisy(noise, &connectomics::W_TN2_CPU4),
+            w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
+            w_tn2_cpu4: StaticWeights::noisy(random, &connectomics::W_TN2_CPU4),
 
             w_cpu4_cpu1a,
             w_cpu4_cpu1b,
             w_cpu4_pontine,
 
-            w_pontine_cpu1a: StaticWeights::noisy(noise, &connectomics::W_PONTINE_CPU1A),
-            w_pontine_cpu1b: StaticWeights::noisy(noise, &connectomics::W_PONTINE_CPU1B),
+            w_pontine_cpu1a: StaticWeights::noisy(random, &connectomics::W_PONTINE_CPU1A),
+            w_pontine_cpu1b: StaticWeights::noisy(random, &connectomics::W_PONTINE_CPU1B),
 
-            w_cpu1a_motor: StaticWeights::noisy(noise, &connectomics::W_CPU1A_MOTOR),
-            w_cpu1b_motor: StaticWeights::noisy(noise, &connectomics::W_CPU1B_MOTOR),
+            w_cpu1a_motor: StaticWeights::noisy(random, &connectomics::W_CPU1A_MOTOR),
+            w_cpu1b_motor: StaticWeights::noisy(random, &connectomics::W_CPU1B_MOTOR),
 
             tb1: ActivityVector::zeros(),
             cpu4_layer: cpu4,
@@ -114,7 +114,7 @@ impl<'a, C: Config> CX<'a, C> {
 
             tn_prefs: std::f32::consts::PI / 4.0,
             tl2_prefs: Self::generate_tl2_prefs(),
-            noise,
+            random,
         }
     }
 
@@ -164,7 +164,7 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn tl2_output(&self, heading: f32) -> ActivityVector<{ N_TL2 }> {
         let input = self.tl2_prefs.map(|pref| (heading - pref).cos());
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::TL2_SLOPE_TUNED,
             constants::TL2_BIAS_TUNED,
@@ -173,7 +173,7 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn cl1_output(&self, tl2: &ActivityVector<{ N_TL2 }>) -> ActivityVector<{ N_CL1 }> {
         let input = -tl2;
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::CL1_SLOPE_TUNED,
             constants::CL1_BIAS_TUNED,
@@ -188,7 +188,7 @@ impl<'a, C: Config> CX<'a, C> {
             prop_cl1 * self.w_cl1_tb1.matrix() * cl1
             - prop_tb1 * self.w_tb1_tb1.matrix() * self.tb1;
 
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::TB1_SLOPE_TUNED,
             constants::TB1_BIAS_TUNED,
@@ -196,11 +196,11 @@ impl<'a, C: Config> CX<'a, C> {
     }
 
     fn tn1_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
-        self.noise.noisify_activity(&(flow.map(|x| (1.0 - x) / 2.0)))
+        self.random.noisify_activity(&(flow.map(|x| (1.0 - x) / 2.0)))
     }
 
     fn tn2_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
-        self.noise.noisify_activity(flow)
+        self.random.noisify_activity(flow)
     }
 
     fn cpu4_update(
@@ -212,7 +212,7 @@ impl<'a, C: Config> CX<'a, C> {
             - self.w_tb1_cpu4.matrix() * self.tb1;
             // + self.w_tn2_cpu4.matrix() * tn2;
 
-        self.cpu4_layer.update(input, &self.noise)
+        self.cpu4_layer.update(input, &self.random)
     }
 
     fn pontine_output(
@@ -220,7 +220,7 @@ impl<'a, C: Config> CX<'a, C> {
         cpu4: &ActivityVector<{ N_CPU4 }>,
     ) -> ActivityVector<{ N_PONTINE }> {
         let input = self.w_cpu4_pontine.update(&cpu4) * cpu4;
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::PONTINE_SLOPE_TUNED,
             constants::PONTINE_BIAS_TUNED,
@@ -236,7 +236,7 @@ impl<'a, C: Config> CX<'a, C> {
             - 0.5 * self.w_pontine_cpu1a.matrix() * pontine
             - self.w_tb1_cpu1a.matrix() * self.tb1;
 
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::CPU1_SLOPE_TUNED,
             constants::CPU1_BIAS_TUNED,
@@ -252,7 +252,7 @@ impl<'a, C: Config> CX<'a, C> {
             - 0.5 * self.w_pontine_cpu1b.matrix() * pontine
             - self.w_tb1_cpu1b.matrix() * self.tb1;
 
-        self.noise.noisy_sigmoid(
+        self.random.noisy_sigmoid(
             &input,
             constants::CPU1_SLOPE_TUNED,
             constants::CPU1_BIAS_TUNED,

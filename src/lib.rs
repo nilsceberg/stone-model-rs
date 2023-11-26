@@ -1,14 +1,15 @@
 use model::{
     connectomics::{W_CPU4_CPU1A, W_CPU4_CPU1B, W_CPU4_PONTINE},
     constants::{N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE},
-    network::{Noise, StaticWeights},
+    network::StaticWeights,
     AbstractCpu4, Config, CX,
 };
 use movement::{PhysicalState, DEFAULT_DRAG};
-use rand::thread_rng;
+use util::Random;
 
 pub mod model;
 pub mod movement;
+pub mod util;
 
 pub struct ReferenceConfig;
 impl model::Config for ReferenceConfig {
@@ -18,14 +19,14 @@ impl model::Config for ReferenceConfig {
     type Cpu4PontineWeights = StaticWeights<{ N_PONTINE }, { N_CPU4 }>;
 }
 
-pub fn create_reference_cx<'a>(noise: &'a Noise) -> CX<'a, ReferenceConfig> {
+pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
     CX::new(
-        noise,
+        random,
         1.0,
         AbstractCpu4::new(),
-        StaticWeights::noisy(noise, &W_CPU4_CPU1A),
-        StaticWeights::noisy(noise, &W_CPU4_CPU1B),
-        StaticWeights::noisy(noise, &W_CPU4_PONTINE),
+        StaticWeights::noisy(random, &W_CPU4_CPU1A),
+        StaticWeights::noisy(random, &W_CPU4_CPU1B),
+        StaticWeights::noisy(random, &W_CPU4_PONTINE),
     )
 }
 
@@ -41,11 +42,14 @@ pub struct Result {
     pub physical_states: Vec<PhysicalState>,
 }
 
-pub fn run_homing_trial(cx: &mut CX<impl Config>, setup: &Setup) -> Result {
-    let rng = &mut thread_rng();
+pub fn run_homing_trial(cx: &mut CX<impl Config>, random: &Random, setup: &Setup) -> Result {
+    // Generate an outbound path
+    let mut physical_states = {
+        let rng = &mut *random.rng();
+        movement::generate_outbound(rng, setup.outbound_steps, setup.acceleration_out, setup.vary_speed)
+    };
 
-    // Generate an outbound path and simulate the agent flying along it
-    let mut physical_states = movement::generate_outbound(rng, setup.outbound_steps, setup.acceleration_out, setup.vary_speed);
+    // Simulate the agent flying along it
     for state in &physical_states {
         cx.update(&state);
     }

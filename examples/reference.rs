@@ -1,7 +1,7 @@
-use stone_model::{model::network::Noise, movement::reconstruct_path, *};
+use stone_model::{util::Random, movement::reconstruct_path, *};
 
 fn main() {
-    let noise = Noise::new(0.1, 0.0);
+    let random = Random::new(0.1, 0.0);
     let setup = Setup {
         outbound_steps: 1500,
         inbound_steps: 1500,
@@ -10,8 +10,8 @@ fn main() {
         vary_speed: true,
     };
 
-    let mut cx = create_reference_cx(&noise);
-    let result = run_homing_trial(&mut cx, &setup);
+    let mut cx = create_reference_cx(&random);
+    let result = run_homing_trial(&mut cx, &random, &setup);
 
     println!("{:?}", reconstruct_path(&result.physical_states));
 }
