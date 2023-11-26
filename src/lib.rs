@@ -1,8 +1,14 @@
+use std::marker::PhantomData;
+
 use model::{
     connectomics::{W_CPU4_CPU1A, W_CPU4_CPU1B, W_CPU4_PONTINE},
     constants::{N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE},
-    network::StaticWeights,
-    AbstractCpu4, Config, CX,
+    memory::{
+        self,
+        weights::{Dynamics, LinearDynamics},
+    },
+    network::{StaticWeights, WeightMatrix},
+    Config, CX,
 };
 use movement::{PhysicalState, DEFAULT_DRAG};
 use util::Random;
@@ -13,7 +19,7 @@ pub mod util;
 
 pub struct ReferenceConfig;
 impl model::Config for ReferenceConfig {
-    type Cpu4Layer = AbstractCpu4;
+    type Cpu4Layer = memory::reference::AbstractCpu4;
     type Cpu4Cpu1aWeights = StaticWeights<{ N_CPU1A }, { N_CPU4 }>;
     type Cpu4Cpu1bWeights = StaticWeights<{ N_CPU1B }, { N_CPU4 }>;
     type Cpu4PontineWeights = StaticWeights<{ N_PONTINE }, { N_CPU4 }>;
@@ -22,11 +28,76 @@ impl model::Config for ReferenceConfig {
 pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
     CX::new(
         random,
-        1.0,
-        AbstractCpu4::new(),
+        0.25,
+        memory::reference::AbstractCpu4::new(),
         StaticWeights::noisy(random, &W_CPU4_CPU1A),
         StaticWeights::noisy(random, &W_CPU4_CPU1B),
         StaticWeights::noisy(random, &W_CPU4_PONTINE),
+    )
+}
+
+pub struct WeightConfig<D: Dynamics>(PhantomData<D>);
+impl<D: Dynamics> model::Config for WeightConfig<D> {
+    type Cpu4Layer = memory::weights::StatelessCpu4;
+    type Cpu4Cpu1aWeights = memory::weights::DynamicWeights<D, { N_CPU1A }, { N_CPU4 }>;
+    type Cpu4Cpu1bWeights = memory::weights::DynamicWeights<D, { N_CPU1B }, { N_CPU4 }>;
+    type Cpu4PontineWeights = memory::weights::DynamicWeights<D, { N_PONTINE }, { N_CPU4 }>;
+}
+
+pub fn create_weight_cx<'a, D: Dynamics>(
+    random: &'a Random,
+    dynamics: &D,
+    beta: f32,
+    initial_weight: f32,
+    turn_sharpness: f32,
+) -> CX<'a, WeightConfig<D>> {
+    CX::new(
+        random,
+        turn_sharpness,
+        memory::weights::StatelessCpu4::new(beta),
+        memory::weights::DynamicWeights::new(
+            dynamics,
+            &W_CPU4_CPU1A,
+            WeightMatrix::repeat(initial_weight),
+        ),
+        memory::weights::DynamicWeights::new(
+            dynamics,
+            &W_CPU4_CPU1B,
+            WeightMatrix::repeat(initial_weight),
+        ),
+        memory::weights::DynamicWeights::new(
+            dynamics,
+            &W_CPU4_PONTINE,
+            WeightMatrix::repeat(initial_weight),
+        ),
+    )
+}
+
+pub fn create_weight_linear_cx<'a>(
+    random: &'a Random,
+    beta: f32,
+) -> CX<'a, WeightConfig<LinearDynamics>> {
+    let dynamics = LinearDynamics { beta };
+    let initial_weight = 0.5;
+    CX::new(
+        random,
+        0.25,
+        memory::weights::StatelessCpu4::new(beta),
+        memory::weights::DynamicWeights::new(
+            &dynamics,
+            &W_CPU4_CPU1A,
+            WeightMatrix::repeat(initial_weight),
+        ),
+        memory::weights::DynamicWeights::new(
+            &dynamics,
+            &W_CPU4_CPU1B,
+            WeightMatrix::repeat(initial_weight),
+        ),
+        memory::weights::DynamicWeights::new(
+            &dynamics,
+            &W_CPU4_PONTINE,
+            WeightMatrix::repeat(initial_weight),
+        ),
     )
 }
 
@@ -46,11 +117,18 @@ pub fn run_homing_trial(cx: &mut CX<impl Config>, random: &Random, setup: &Setup
     // Generate an outbound path
     let mut physical_states = {
         let rng = &mut *random.rng();
-        movement::generate_outbound(rng, setup.outbound_steps, setup.acceleration_out, setup.vary_speed)
+        movement::generate_outbound(
+            rng,
+            setup.outbound_steps,
+            setup.acceleration_out,
+            setup.vary_speed,
+        )
     };
 
     // Simulate the agent flying along it
-    for state in &physical_states[..physical_states.len()-1 /* leave last state for start of homing */] {
+    for state in
+        &physical_states[..physical_states.len()-1 /* leave last state for start of homing */]
+    {
         cx.update(&state);
     }
 

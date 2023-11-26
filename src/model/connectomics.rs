@@ -175,9 +175,14 @@ pub fn generate_tb_tb_weights() -> WeightMatrix<{ N_TB1 }, { N_TB1 }> {
     let sinusoid = -(x.mapv(f32::cos) - 1.0) / 2.0;
 
     for i in 0..constants::N_TB1 {
-        let rolled =
-            ndarray::concatenate(Axis(0), &[sinusoid.slice(s![N_TB1-i..]), sinusoid.slice(s![..N_TB1-i])])
-                .unwrap();
+        let rolled = ndarray::concatenate(
+            Axis(0),
+            &[
+                sinusoid.slice(s![N_TB1 - i..]),
+                sinusoid.slice(s![..N_TB1 - i]),
+            ],
+        )
+        .unwrap();
         //let rolled =
         //    ndarray::concatenate(Axis(0), &[sinusoid.slice(s![i..]), sinusoid.slice(s![..i])])
         //        .unwrap();

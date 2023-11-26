@@ -22,7 +22,12 @@ impl PhysicalState {
     }
 }
 
-pub fn generate_outbound(rng: &mut impl Rng, steps: usize, acceleration: f32, vary_speed: bool) -> Vec<PhysicalState> {
+pub fn generate_outbound(
+    rng: &mut impl Rng,
+    steps: usize,
+    acceleration: f32,
+    vary_speed: bool,
+) -> Vec<PhysicalState> {
     let mut states = Vec::with_capacity(steps);
 
     // Generate random motor outputs
@@ -81,8 +86,7 @@ pub fn generate_accelerations(
         }
 
         accelerations
-    }
-    else {
+    } else {
         DVector::repeat(steps, acceleration)
     }
 }

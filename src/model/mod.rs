@@ -2,6 +2,7 @@
 
 pub mod connectomics;
 pub mod constants;
+pub mod memory;
 pub mod network;
 
 use nalgebra::{matrix, SVector, Vector2};
@@ -10,38 +11,6 @@ use ndarray::{prelude::*, Axis};
 use crate::{movement::PhysicalState, util::Random};
 use constants::{N_CL1, N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE, N_TB1, N_TL2, N_TN1, N_TN2};
 use network::*;
-
-use self::constants::CPU4_MEM_FADE;
-
-pub struct AbstractCpu4 {
-    memory: ActivityVector<{ N_CPU4 }>,
-}
-
-impl AbstractCpu4 {
-    pub fn new() -> AbstractCpu4 {
-        AbstractCpu4 {
-            memory: ActivityVector::repeat(0.5),
-        }
-    }
-}
-
-impl Layer<{ N_CPU4 }> for AbstractCpu4 {
-    fn update(
-        &mut self,
-        input: ActivityVector<{ N_CPU4 }>,
-        random: &Random,
-    ) -> ActivityVector<{ N_CPU4 }> {
-        let mem_update = input.map(|x| x.clamp(0.0, 1.0) - CPU4_MEM_FADE);
-        self.memory =
-            (&self.memory + mem_update * constants::CPU4_MEM_GAIN).map(|x| x.clamp(0.0, 1.0));
-
-        random.noisy_sigmoid(
-            &self.memory,
-            constants::CPU4_SLOPE_TUNED,
-            constants::CPU4_BIAS_TUNED,
-        )
-    }
-}
 
 pub trait Config {
     type Cpu4Layer: Layer<{ N_CPU4 }>;
@@ -56,7 +25,7 @@ pub struct CX<'a, C: Config> {
     w_tb1_cpu1a: StaticWeights<{ N_CPU1A }, { N_TB1 }>,
     w_tb1_cpu1b: StaticWeights<{ N_CPU1B }, { N_TB1 }>,
     w_tb1_cpu4: StaticWeights<{ N_CPU4 }, { N_TB1 }>,
-    w_tn1_cpu4: StaticWeights<{ N_CPU4 }, { N_TN1 }>,
+    _w_tn1_cpu4: StaticWeights<{ N_CPU4 }, { N_TN1 }>,
     w_tn2_cpu4: StaticWeights<{ N_CPU4 }, { N_TN2 }>,
     w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
     w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
@@ -94,7 +63,7 @@ impl<'a, C: Config> CX<'a, C> {
             w_tb1_cpu1b: StaticWeights::noisy(random, &connectomics::W_TB1_CPU1B),
             w_tb1_cpu4: StaticWeights::noisy(random, &connectomics::W_TB1_CPU4),
 
-            w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
+            _w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
             w_tn2_cpu4: StaticWeights::noisy(random, &connectomics::W_TN2_CPU4),
 
             w_cpu4_cpu1a,
@@ -184,8 +153,7 @@ impl<'a, C: Config> CX<'a, C> {
         let prop_cl1 = 0.667f32;
         let prop_tb1 = 1.0 - prop_cl1;
 
-        let input =
-            prop_cl1 * self.w_cl1_tb1.matrix() * cl1
+        let input = prop_cl1 * self.w_cl1_tb1.matrix() * cl1
             - prop_tb1 * self.w_tb1_tb1.matrix() * self.tb1;
 
         self.random.noisy_sigmoid(
@@ -196,7 +164,8 @@ impl<'a, C: Config> CX<'a, C> {
     }
 
     fn tn1_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
-        self.random.noisify_activity(&(flow.map(|x| (1.0 - x) / 2.0)))
+        self.random
+            .noisify_activity(&(flow.map(|x| (1.0 - x) / 2.0)))
     }
 
     fn tn2_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
@@ -208,9 +177,7 @@ impl<'a, C: Config> CX<'a, C> {
         _tn1: &ActivityVector<{ N_TN1 }>,
         tn2: &ActivityVector<{ N_TN2 }>,
     ) -> ActivityVector<{ N_CPU4 }> {
-        let input = self.w_tn2_cpu4.matrix() * tn2
-            - self.w_tb1_cpu4.matrix() * self.tb1;
-            // + self.w_tn2_cpu4.matrix() * tn2;
+        let input = self.w_tn2_cpu4.matrix() * tn2 - self.w_tb1_cpu4.matrix() * self.tb1;
 
         self.cpu4_layer.update(input, &self.random)
     }
@@ -220,6 +187,7 @@ impl<'a, C: Config> CX<'a, C> {
         cpu4: &ActivityVector<{ N_CPU4 }>,
     ) -> ActivityVector<{ N_PONTINE }> {
         let input = self.w_cpu4_pontine.update(&cpu4) * cpu4;
+        //print!("{:?}", self.w_cpu4_pontine);
         self.random.noisy_sigmoid(
             &input,
             constants::PONTINE_SLOPE_TUNED,
@@ -265,7 +233,7 @@ impl<'a, C: Config> CX<'a, C> {
         cpu1b: &ActivityVector<{ N_CPU1B }>,
     ) -> f32 {
         let motor = self.w_cpu1a_motor.matrix() * cpu1a + self.w_cpu1b_motor.matrix() * cpu1b;
-        let output = (motor[0] - motor[1]) * 0.25;
+        let output = motor[0] - motor[1];
         output
     }
 }

@@ -16,7 +16,7 @@ fn main() {
 
     let mut times = 0;
     while std::time::Instant::now() < then {
-        let mut cx = create_reference_cx(&random);
+        let mut cx = create_weight_linear_cx(&random, 0.5);
         run_homing_trial(&mut cx, &random, &setup);
         times += 1;
     }

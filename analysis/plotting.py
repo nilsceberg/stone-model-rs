@@ -13,4 +13,5 @@ with open("data/path.json") as f:
     fig, ax = plt.subplots(figsize=figsize)
     ax.plot(path[:outbound_steps+1,0,0], path[:outbound_steps+1,0,1])
     ax.plot(path[inbound_steps+1:,0,0], path[inbound_steps+1:,0,1])
+    ax.set_aspect("equal")
     plt.show()

@@ -1,10 +1,10 @@
 use std::cell::{RefCell, RefMut};
 
 use nalgebra::SMatrix;
-use rand::{rngs::SmallRng, SeedableRng, Rng};
-use rand_distr::{Normal, Distribution};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand_distr::{Distribution, Normal};
 
-use super::model::network::{WeightMatrix, ActivityVector};
+use super::model::network::{ActivityVector, WeightMatrix};
 
 pub struct Random {
     rng: RefCell<SmallRng>,
@@ -54,6 +54,9 @@ impl Random {
         slope: f32,
         bias: f32,
     ) -> ActivityVector<{ N }> {
-        self.noisify(&self.activity_noise, &activity.map(|x| 1.0 / (1.0 + (-(x * slope - bias)).exp())))
+        self.noisify(
+            &self.activity_noise,
+            &activity.map(|x| 1.0 / (1.0 + (-(x * slope - bias)).exp())),
+        )
     }
 }

@@ -10,7 +10,7 @@ fn main() {
         vary_speed: true,
     };
 
-    let mut cx = create_reference_cx(&random);
+    let mut cx = create_weight_linear_cx(&random, 0.5);
     let result = run_homing_trial(&mut cx, &random, &setup);
 
     println!("{:?}", reconstruct_path(&result.physical_states));
