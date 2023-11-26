@@ -15,10 +15,10 @@ use network::*;
 use self::memory::MemoryRecorder;
 
 pub trait Config: Sized {
-    type Cpu4Layer: Layer<{ N_CPU4 }>;
-    type Cpu4Cpu1aWeights: Weights<{ N_CPU1A }, { N_CPU4 }>;
-    type Cpu4Cpu1bWeights: Weights<{ N_CPU1B }, { N_CPU4 }>;
-    type Cpu4PontineWeights: Weights<{ N_PONTINE }, { N_CPU4 }>;
+    type Cpu4Layer: Layer<N_CPU4>;
+    type Cpu4Cpu1aWeights: Weights<N_CPU1A, N_CPU4>;
+    type Cpu4Cpu1bWeights: Weights<N_CPU1B, N_CPU4>;
+    type Cpu4PontineWeights: Weights<N_PONTINE, N_CPU4>;
     type MemoryRecorder: MemoryRecorder<Self>;
 }
 
@@ -26,22 +26,22 @@ pub struct CX<'a, C: Config> {
     pub w_cl1_tb1: StaticWeights<N_TB1, N_CL1>,
     pub w_tb1_tb1: StaticWeights<N_TB1, N_TB1>,
 
-    pub w_tb1_cpu1a: StaticWeights<{ N_CPU1A }, { N_TB1 }>,
-    pub w_tb1_cpu1b: StaticWeights<{ N_CPU1B }, { N_TB1 }>,
-    pub w_tb1_cpu4: StaticWeights<{ N_CPU4 }, { N_TB1 }>,
+    pub w_tb1_cpu1a: StaticWeights<N_CPU1A, N_TB1>,
+    pub w_tb1_cpu1b: StaticWeights<N_CPU1B, N_TB1>,
+    pub w_tb1_cpu4: StaticWeights<N_CPU4, N_TB1>,
 
-    pub w_tn1_cpu4: StaticWeights<{ N_CPU4 }, { N_TN1 }>,
-    pub w_tn2_cpu4: StaticWeights<{ N_CPU4 }, { N_TN2 }>,
+    pub w_tn1_cpu4: StaticWeights<N_CPU4, N_TN1>,
+    pub w_tn2_cpu4: StaticWeights<N_CPU4, N_TN2>,
 
     pub w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
     pub w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
     pub w_cpu4_pontine: C::Cpu4PontineWeights,
 
-    pub w_pontine_cpu1a: StaticWeights<{ N_CPU1A }, { N_PONTINE }>,
-    pub w_pontine_cpu1b: StaticWeights<{ N_CPU1B }, { N_PONTINE }>,
+    pub w_pontine_cpu1a: StaticWeights<N_CPU1A, N_PONTINE>,
+    pub w_pontine_cpu1b: StaticWeights<N_CPU1B, N_PONTINE>,
 
-    pub w_cpu1a_motor: StaticWeights<2, { N_CPU1A }>,
-    pub w_cpu1b_motor: StaticWeights<2, { N_CPU1B }>,
+    pub w_cpu1a_motor: StaticWeights<2, N_CPU1A>,
+    pub w_cpu1b_motor: StaticWeights<2, N_CPU1B>,
 
     pub tb1: ActivityVector<N_TB1>,
     pub cpu4_layer: C::Cpu4Layer,
@@ -49,7 +49,7 @@ pub struct CX<'a, C: Config> {
     turn_sharpness: f32,
 
     tn_prefs: f32,
-    tl2_prefs: SVector<f32, { N_TL2 }>,
+    tl2_prefs: SVector<f32, N_TL2>,
     random: &'a Random,
 }
 
@@ -125,7 +125,7 @@ impl<'a, C: Config> CX<'a, C> {
             &[tl2_prefs.slice(s![..-1]), tl2_prefs.slice(s![..-1])],
         )
         .unwrap();
-        SVector::<f32, { N_TL2 }>::from_vec(tl2_prefs.into_raw_vec())
+        SVector::<f32, N_TL2>::from_vec(tl2_prefs.into_raw_vec())
     }
 
     fn get_flow(&self, PhysicalState { heading, velocity }: &PhysicalState) -> Vector2<f32> {
@@ -138,7 +138,7 @@ impl<'a, C: Config> CX<'a, C> {
         sensitivity * velocity
     }
 
-    fn tl2_output(&self, heading: f32) -> ActivityVector<{ N_TL2 }> {
+    fn tl2_output(&self, heading: f32) -> ActivityVector<N_TL2> {
         let input = self.tl2_prefs.map(|pref| (heading - pref).cos());
         self.random.noisy_sigmoid(
             &input,
@@ -147,7 +147,7 @@ impl<'a, C: Config> CX<'a, C> {
         )
     }
 
-    fn cl1_output(&self, tl2: &ActivityVector<{ N_TL2 }>) -> ActivityVector<{ N_CL1 }> {
+    fn cl1_output(&self, tl2: &ActivityVector<N_TL2>) -> ActivityVector<N_CL1> {
         let input = -tl2;
         self.random.noisy_sigmoid(
             &input,
@@ -156,7 +156,7 @@ impl<'a, C: Config> CX<'a, C> {
         )
     }
 
-    fn tb1_output(&self, cl1: &ActivityVector<{ N_CL1 }>) -> ActivityVector<{ N_TB1 }> {
+    fn tb1_output(&self, cl1: &ActivityVector<N_CL1>) -> ActivityVector<N_TB1> {
         let prop_cl1 = 0.667f32;
         let prop_tb1 = 1.0 - prop_cl1;
 
@@ -170,29 +170,26 @@ impl<'a, C: Config> CX<'a, C> {
         )
     }
 
-    fn tn1_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
+    fn tn1_output(&self, flow: &Vector2<f32>) -> ActivityVector<N_TN2> {
         self.random
             .noisify_activity(&(flow.map(|x| (1.0 - x) / 2.0)))
     }
 
-    fn tn2_output(&self, flow: &Vector2<f32>) -> ActivityVector<{ N_TN2 }> {
+    fn tn2_output(&self, flow: &Vector2<f32>) -> ActivityVector<N_TN2> {
         self.random.noisify_activity(flow)
     }
 
     fn cpu4_update(
         &mut self,
-        _tn1: &ActivityVector<{ N_TN1 }>,
-        tn2: &ActivityVector<{ N_TN2 }>,
-    ) -> ActivityVector<{ N_CPU4 }> {
+        _tn1: &ActivityVector<N_TN1>,
+        tn2: &ActivityVector<N_TN2>,
+    ) -> ActivityVector<N_CPU4> {
         let input = self.w_tn2_cpu4.matrix() * tn2 - self.w_tb1_cpu4.matrix() * self.tb1;
 
         self.cpu4_layer.update(input, &self.random)
     }
 
-    fn pontine_output(
-        &mut self,
-        cpu4: &ActivityVector<{ N_CPU4 }>,
-    ) -> ActivityVector<{ N_PONTINE }> {
+    fn pontine_output(&mut self, cpu4: &ActivityVector<N_CPU4>) -> ActivityVector<N_PONTINE> {
         let input = self.w_cpu4_pontine.update(&cpu4) * cpu4;
         //print!("{:?}", self.w_cpu4_pontine);
         self.random.noisy_sigmoid(
@@ -204,9 +201,9 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn cpu1a_output(
         &mut self,
-        cpu4: &ActivityVector<{ N_CPU4 }>,
-        pontine: &ActivityVector<{ N_PONTINE }>,
-    ) -> ActivityVector<{ N_CPU1A }> {
+        cpu4: &ActivityVector<N_CPU4>,
+        pontine: &ActivityVector<N_PONTINE>,
+    ) -> ActivityVector<N_CPU1A> {
         let input = 0.5 * self.w_cpu4_cpu1a.update(&cpu4) * cpu4
             - 0.5 * self.w_pontine_cpu1a.matrix() * pontine
             - self.w_tb1_cpu1a.matrix() * self.tb1;
@@ -220,9 +217,9 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn cpu1b_output(
         &mut self,
-        cpu4: &ActivityVector<{ N_CPU4 }>,
-        pontine: &ActivityVector<{ N_PONTINE }>,
-    ) -> ActivityVector<{ N_CPU1B }> {
+        cpu4: &ActivityVector<N_CPU4>,
+        pontine: &ActivityVector<N_PONTINE>,
+    ) -> ActivityVector<N_CPU1B> {
         let input = 0.5 * self.w_cpu4_cpu1b.update(&cpu4) * cpu4
             - 0.5 * self.w_pontine_cpu1b.matrix() * pontine
             - self.w_tb1_cpu1b.matrix() * self.tb1;
@@ -236,8 +233,8 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn motor_output(
         &self,
-        cpu1a: &ActivityVector<{ N_CPU1A }>,
-        cpu1b: &ActivityVector<{ N_CPU1B }>,
+        cpu1a: &ActivityVector<N_CPU1A>,
+        cpu1b: &ActivityVector<N_CPU1B>,
     ) -> f32 {
         let motor = self.w_cpu1a_motor.matrix() * cpu1a + self.w_cpu1b_motor.matrix() * cpu1b;
         let output = motor[0] - motor[1];

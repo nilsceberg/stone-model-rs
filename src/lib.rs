@@ -25,9 +25,9 @@ pub const COMMON_SEED: Option<u64> = Some(64172527321326);
 pub struct ReferenceConfig;
 impl model::Config for ReferenceConfig {
     type Cpu4Layer = memory::reference::AbstractCpu4;
-    type Cpu4Cpu1aWeights = StaticWeights<{ N_CPU1A }, { N_CPU4 }>;
-    type Cpu4Cpu1bWeights = StaticWeights<{ N_CPU1B }, { N_CPU4 }>;
-    type Cpu4PontineWeights = StaticWeights<{ N_PONTINE }, { N_CPU4 }>;
+    type Cpu4Cpu1aWeights = StaticWeights<N_CPU1A, N_CPU4>;
+    type Cpu4Cpu1bWeights = StaticWeights<N_CPU1B, N_CPU4>;
+    type Cpu4PontineWeights = StaticWeights<N_PONTINE, N_CPU4>;
     type MemoryRecorder = AbstractMemoryRecorder;
 }
 
@@ -45,9 +45,9 @@ pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
 pub struct WeightConfig<D: Dynamics>(PhantomData<D>);
 impl<D: Dynamics> model::Config for WeightConfig<D> {
     type Cpu4Layer = memory::weights::StatelessCpu4;
-    type Cpu4Cpu1aWeights = memory::weights::DynamicWeights<D, { N_CPU1A }, { N_CPU4 }>;
-    type Cpu4Cpu1bWeights = memory::weights::DynamicWeights<D, { N_CPU1B }, { N_CPU4 }>;
-    type Cpu4PontineWeights = memory::weights::DynamicWeights<D, { N_PONTINE }, { N_CPU4 }>;
+    type Cpu4Cpu1aWeights = memory::weights::DynamicWeights<D, N_CPU1A, N_CPU4>;
+    type Cpu4Cpu1bWeights = memory::weights::DynamicWeights<D, N_CPU1B, N_CPU4>;
+    type Cpu4PontineWeights = memory::weights::DynamicWeights<D, N_PONTINE, N_CPU4>;
     type MemoryRecorder = PontineWeightMemoryRecorder;
 }
 

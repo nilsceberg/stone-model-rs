@@ -17,7 +17,7 @@ pub mod reference {
     use super::MemoryRecorder;
 
     pub struct AbstractCpu4 {
-        memory: ActivityVector<{ N_CPU4 }>,
+        memory: ActivityVector<N_CPU4>,
     }
 
     impl AbstractCpu4 {
@@ -28,12 +28,12 @@ pub mod reference {
         }
     }
 
-    impl Layer<{ N_CPU4 }> for AbstractCpu4 {
+    impl Layer<N_CPU4> for AbstractCpu4 {
         fn update(
             &mut self,
-            input: ActivityVector<{ N_CPU4 }>,
+            input: ActivityVector<N_CPU4>,
             random: &Random,
-        ) -> ActivityVector<{ N_CPU4 }> {
+        ) -> ActivityVector<N_CPU4> {
             let mem_update = input.map(|x| x.clamp(0.0, 1.0) - CPU4_MEM_FADE);
             self.memory =
                 (&self.memory + mem_update * constants::CPU4_MEM_GAIN).map(|x| x.clamp(0.0, 1.0));
@@ -48,7 +48,7 @@ pub mod reference {
 
     pub struct AbstractMemoryRecorder;
     impl<C: Config<Cpu4Layer = AbstractCpu4>> MemoryRecorder<C> for AbstractMemoryRecorder {
-        fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }> {
+        fn record(cx: &CX<C>) -> SVector<f32, N_CPU4> {
             cx.cpu4_layer.memory
         }
     }
@@ -98,15 +98,15 @@ pub mod weights {
 
     pub struct DynamicWeights<D: Dynamics, const TO: usize, const FROM: usize> {
         dynamics: D,
-        connectivity: &'static WeightMatrix<{ TO }, { FROM }>,
-        weights: WeightMatrix<{ TO }, { FROM }>,
+        connectivity: &'static WeightMatrix<TO, FROM>,
+        weights: WeightMatrix<TO, FROM>,
     }
 
-    impl<D: Dynamics, const TO: usize, const FROM: usize> DynamicWeights<D, { TO }, { FROM }> {
+    impl<D: Dynamics, const TO: usize, const FROM: usize> DynamicWeights<D, TO, FROM> {
         pub fn new(
             dynamics: &D,
-            connectivity: &'static WeightMatrix<{ TO }, { FROM }>,
-            initial: WeightMatrix<{ TO }, { FROM }>,
+            connectivity: &'static WeightMatrix<TO, FROM>,
+            initial: WeightMatrix<TO, FROM>,
         ) -> Self {
             Self {
                 dynamics: dynamics.clone(),
@@ -116,10 +116,10 @@ pub mod weights {
         }
     }
 
-    impl<D: Dynamics, const TO: usize, const FROM: usize> Weights<{ TO }, { FROM }>
-        for DynamicWeights<D, { TO }, { FROM }>
+    impl<D: Dynamics, const TO: usize, const FROM: usize> Weights<TO, FROM>
+        for DynamicWeights<D, TO, FROM>
     {
-        fn update(&mut self, input: &ActivityVector<{ FROM }>) -> &WeightMatrix<{ TO }, { FROM }> {
+        fn update(&mut self, input: &ActivityVector<FROM>) -> &WeightMatrix<TO, FROM> {
             // Each row in the weight matrix represents one synapse per input rate,
             // so each row gets element-wise multiplied with the connectivity and the current weights.
             //let signal = self.connectivity * WeightMatrix::from_diagonal(input);
@@ -139,14 +139,12 @@ pub mod weights {
             &self.weights
         }
 
-        fn matrix(&self) -> &WeightMatrix<{ TO }, { FROM }> {
+        fn matrix(&self) -> &WeightMatrix<TO, FROM> {
             &self.weights
         }
     }
 
-    impl<D: Dynamics, const TO: usize, const FROM: usize> Debug
-        for DynamicWeights<D, { TO }, { FROM }>
-    {
+    impl<D: Dynamics, const TO: usize, const FROM: usize> Debug for DynamicWeights<D, TO, FROM> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_fmt(format_args!("{:?}\n", self.weights))
             //debug_struct("DynamicWeights").field("dynamics", &self.dynamics).field("connectivity", &self.connectivity).field("weights", &self.weights).finish()
@@ -163,12 +161,12 @@ pub mod weights {
         }
     }
 
-    impl Layer<{ N_CPU4 }> for StatelessCpu4 {
+    impl Layer<N_CPU4> for StatelessCpu4 {
         fn update(
             &mut self,
-            input: ActivityVector<{ N_CPU4 }>,
+            input: ActivityVector<N_CPU4>,
             random: &Random,
-        ) -> ActivityVector<{ N_CPU4 }> {
+        ) -> ActivityVector<N_CPU4> {
             random
                 .noisy_sigmoid(
                     &input,
@@ -181,12 +179,12 @@ pub mod weights {
 
     pub struct PontineWeightMemoryRecorder;
     impl<C: Config> MemoryRecorder<C> for PontineWeightMemoryRecorder {
-        fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }> {
+        fn record(cx: &CX<C>) -> SVector<f32, N_CPU4> {
             cx.w_cpu4_pontine.matrix().diagonal()
         }
     }
 }
 
 pub trait MemoryRecorder<C: Config> {
-    fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }>;
+    fn record(cx: &CX<C>) -> SVector<f32, N_CPU4>;
 }
