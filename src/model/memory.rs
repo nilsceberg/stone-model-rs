@@ -147,7 +147,6 @@ pub mod weights {
             input: ActivityVector<{ N_CPU4 }>,
             random: &Random,
         ) -> ActivityVector<{ N_CPU4 }> {
-            // Like in the thesis:
             random
                 .noisy_sigmoid(
                     &input,
@@ -155,15 +154,6 @@ pub mod weights {
                     constants::CPU4_BIAS_TUNED,
                 )
                 .map(|x| (x + self.beta).clamp(0.0, 1.0))
-
-            // TODO: Does this also work?
-            // let mut input = input * (1.0 - self.beta);
-            // input.add_scalar_mut(self.beta);
-            // random.noisy_sigmoid(
-            //     &input,
-            //     constants::CPU4_SLOPE_TUNED,
-            //     constants::CPU4_BIAS_TUNED,
-            // )
         }
     }
 }
