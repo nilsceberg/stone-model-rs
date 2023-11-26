@@ -17,6 +17,8 @@ pub mod model;
 pub mod movement;
 pub mod util;
 
+pub const COMMON_SEED: Option<u64> = Some(64172527321326);
+
 pub struct ReferenceConfig;
 impl model::Config for ReferenceConfig {
     type Cpu4Layer = memory::reference::AbstractCpu4;
@@ -81,7 +83,7 @@ pub fn create_weight_linear_cx<'a>(
     let initial_weight = 0.5;
     CX::new(
         random,
-        0.25,
+        0.15,
         memory::weights::StatelessCpu4::new(beta),
         memory::weights::DynamicWeights::new(
             &dynamics,
@@ -109,23 +111,31 @@ pub struct Setup {
     pub acceleration_in: f32,
 }
 
+impl Setup {
+    pub fn generate_outbound(&self, random: &Random) -> Vec<PhysicalState> {
+        // Generate an outbound path
+        let rng = &mut *random.rng();
+        movement::generate_outbound(
+            rng,
+            self.outbound_steps,
+            self.acceleration_out,
+            self.vary_speed,
+        )
+    }
+}
+
 pub struct Result {
     pub physical_states: Vec<PhysicalState>,
 }
 
-pub fn run_homing_trial(cx: &mut CX<impl Config>, random: &Random, setup: &Setup) -> Result {
-    // Generate an outbound path
-    let mut physical_states = {
-        let rng = &mut *random.rng();
-        movement::generate_outbound(
-            rng,
-            setup.outbound_steps,
-            setup.acceleration_out,
-            setup.vary_speed,
-        )
-    };
+pub fn run_homing_trial(
+    setup: &Setup,
+    cx: &mut CX<impl Config>,
+    outbound: Vec<PhysicalState>,
+) -> Result {
+    let mut physical_states = outbound;
 
-    // Simulate the agent flying along it
+    // Simulate the agent flying along the outbound path
     for state in
         &physical_states[..physical_states.len()-1 /* leave last state for start of homing */]
     {

@@ -5,7 +5,7 @@ fn main() {
     let now = std::time::Instant::now();
     let then = now + duration;
 
-    let random = Random::new(0.1, 0.0);
+    let random = Random::new(0.1, 0.0, COMMON_SEED);
     let setup = Setup {
         outbound_steps: 1500,
         inbound_steps: 1500,
@@ -16,8 +16,9 @@ fn main() {
 
     let mut times = 0;
     while std::time::Instant::now() < then {
+        let outbound = setup.generate_outbound(&random);
         let mut cx = create_weight_linear_cx(&random, 0.5);
-        run_homing_trial(&mut cx, &random, &setup);
+        run_homing_trial(&setup, &mut cx, outbound);
         times += 1;
     }
 

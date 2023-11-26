@@ -66,6 +66,18 @@ pub mod weights {
         }
     }
 
+    //#[derive(Clone)]
+    //pub struct LogisticDynamics {
+    //    pub : f32,
+    //}
+    //impl Dynamics for LinearDynamics {
+    //    fn dwdt(&self, _w: f32, r: f32) -> f32 {
+    //        const H: f32 = 0.0025;
+    //        let k: f32 = 0.125 + self.beta;
+    //        H * (-k + r)
+    //    }
+    //}
+
     pub struct DynamicWeights<D: Dynamics, const TO: usize, const FROM: usize> {
         dynamics: D,
         connectivity: &'static WeightMatrix<{ TO }, { FROM }>,
@@ -101,7 +113,8 @@ pub mod weights {
             for j in 0..FROM {
                 for i in 0..TO {
                     let index = j * TO + i;
-                    self.weights[index] += self.connectivity[index] * self.dynamics.dwdt(self.weights[index], input[j]);
+                    self.weights[index] += self.connectivity[index]
+                        * self.dynamics.dwdt(self.weights[index], input[j]);
                 }
             }
 

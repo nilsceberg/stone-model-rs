@@ -13,9 +13,15 @@ pub struct Random {
 }
 
 impl Random {
-    pub fn new(activity_noise: f32, weight_noise: f32) -> Random {
+    pub fn new(activity_noise: f32, weight_noise: f32, seed: Option<u64>) -> Random {
+        let rng = if let Some(seed) = seed {
+            SmallRng::seed_from_u64(seed)
+        } else {
+            SmallRng::from_entropy()
+        };
+
         Random {
-            rng: RefCell::new(SmallRng::from_entropy()),
+            rng: RefCell::new(rng),
             activity_noise: Normal::new(0.0, activity_noise).unwrap(),
             weight_noise: Normal::new(0.0, weight_noise).unwrap(),
         }
