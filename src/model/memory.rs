@@ -92,11 +92,19 @@ pub mod weights {
         fn update(&mut self, input: &ActivityVector<{ FROM }>) -> &WeightMatrix<{ TO }, { FROM }> {
             // Each row in the weight matrix represents one synapse per input rate,
             // so each row gets element-wise multiplied with the connectivity and the current weights.
-            let signal = self.connectivity * WeightMatrix::from_diagonal(input);
-            self.weights += self
-                .weights
-                .zip_map(&signal, |w, r| self.dynamics.dwdt(w, r))
-                .component_mul(self.connectivity);
+            //let signal = self.connectivity * WeightMatrix::from_diagonal(input);
+            //self.weights += self
+            //    .weights
+            //    .zip_map(&signal, |w, r| self.dynamics.dwdt(w, r))
+            //    .component_mul(self.connectivity);
+
+            for j in 0..FROM {
+                for i in 0..TO {
+                    let index = j * TO + i;
+                    self.weights[index] += self.connectivity[index] * self.dynamics.dwdt(self.weights[index], input[j]);
+                }
+            }
+
             &self.weights
         }
     }
