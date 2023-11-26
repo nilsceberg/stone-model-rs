@@ -1,4 +1,4 @@
-use stone_model::{util::Random, *};
+use stone_model::{movement::reconstruct_path, util::Random, *};
 
 fn main() {
     let random = Random::new(0.1, 0.0, COMMON_SEED);
@@ -12,9 +12,9 @@ fn main() {
     };
 
     let outbound = setup.generate_outbound(&random);
-    let mut cx = create_weight_logistic_cx(&random, 7.8E-3, 6.2E-5, 0.3);
+    let mut cx = create_weight_logistic_cx(&random, 0.0127, 6.16E-5, 0.24);
     let result = run_homing_trial(&setup, &mut cx, outbound);
 
-    //println!("{:?}", reconstruct_path(&result.physical_states));
-    println!("{:?}", result.memory_record.unwrap());
+    println!("{:?}", reconstruct_path(&result.physical_states));
+    //println!("{:?}", result.memory_record.unwrap());
 }

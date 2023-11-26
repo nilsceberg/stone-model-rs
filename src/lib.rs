@@ -18,6 +18,7 @@ use util::Random;
 
 pub mod model;
 pub mod movement;
+pub mod stats;
 pub mod util;
 
 pub const COMMON_SEED: Option<u64> = Some(64172527321326);
@@ -147,7 +148,7 @@ impl Setup {
     }
 }
 
-pub struct Result {
+pub struct FlightData {
     pub physical_states: Vec<PhysicalState>,
     pub memory_record: Option<Vec<SVector<f32, N_CPU4>>>,
 }
@@ -156,7 +157,7 @@ pub fn run_homing_trial<C: Config>(
     setup: &Setup,
     cx: &mut CX<C>,
     outbound: Vec<PhysicalState>,
-) -> Result {
+) -> FlightData {
     let mut physical_states = outbound;
     let mut memory_record: Option<Vec<SVector<f32, N_CPU4>>> = if setup.record_memory {
         Some(Vec::with_capacity(
@@ -189,7 +190,7 @@ pub fn run_homing_trial<C: Config>(
         }
     }
 
-    Result {
+    FlightData {
         physical_states,
         memory_record,
     }
