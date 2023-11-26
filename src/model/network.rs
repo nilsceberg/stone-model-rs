@@ -10,6 +10,7 @@ pub type WeightMatrix<const N: usize, const M: usize> = SMatrix<f32, N, M>;
 pub trait Weights<const TO: usize, const FROM: usize>: Debug {
     /// Weights may dynamically change depending on input.
     fn update(&mut self, input: &ActivityVector<FROM>) -> &WeightMatrix<TO, FROM>;
+    fn matrix(&self) -> &WeightMatrix<TO, FROM>;
 }
 
 pub trait Layer<const N: usize> {
@@ -24,15 +25,15 @@ impl<const TO: usize, const FROM: usize> StaticWeights<TO, FROM> {
         let weights = random.noisify_weights(weights);
         StaticWeights(weights)
     }
-
-    pub fn matrix(&self) -> &WeightMatrix<TO, FROM> {
-        &self.0
-    }
 }
 
 impl<const TO: usize, const FROM: usize> Weights<TO, FROM> for StaticWeights<TO, FROM> {
     fn update(&mut self, _input: &ActivityVector<FROM>) -> &WeightMatrix<TO, FROM> {
         self.matrix()
+    }
+
+    fn matrix(&self) -> &WeightMatrix<TO, FROM> {
+        &self.0
     }
 }
 

@@ -12,11 +12,14 @@ use crate::{movement::PhysicalState, util::Random};
 use constants::{N_CL1, N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE, N_TB1, N_TL2, N_TN1, N_TN2};
 use network::*;
 
-pub trait Config {
+use self::memory::MemoryRecorder;
+
+pub trait Config: Sized {
     type Cpu4Layer: Layer<{ N_CPU4 }>;
     type Cpu4Cpu1aWeights: Weights<{ N_CPU1A }, { N_CPU4 }>;
     type Cpu4Cpu1bWeights: Weights<{ N_CPU1B }, { N_CPU4 }>;
     type Cpu4PontineWeights: Weights<{ N_PONTINE }, { N_CPU4 }>;
+    type MemoryRecorder: MemoryRecorder<Self>;
 }
 
 pub struct CX<'a, C: Config> {

@@ -5,12 +5,15 @@ use model::{
     constants::{N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE},
     memory::{
         self,
-        weights::{Dynamics, LinearDynamics},
+        reference::AbstractMemoryRecorder,
+        weights::{Dynamics, LinearDynamics, LogisticDynamics, PontineWeightMemoryRecorder},
+        MemoryRecorder,
     },
     network::{StaticWeights, WeightMatrix},
     Config, CX,
 };
 use movement::{PhysicalState, DEFAULT_DRAG};
+use nalgebra::SVector;
 use util::Random;
 
 pub mod model;
@@ -25,6 +28,7 @@ impl model::Config for ReferenceConfig {
     type Cpu4Cpu1aWeights = StaticWeights<{ N_CPU1A }, { N_CPU4 }>;
     type Cpu4Cpu1bWeights = StaticWeights<{ N_CPU1B }, { N_CPU4 }>;
     type Cpu4PontineWeights = StaticWeights<{ N_PONTINE }, { N_CPU4 }>;
+    type MemoryRecorder = AbstractMemoryRecorder;
 }
 
 pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
@@ -44,6 +48,7 @@ impl<D: Dynamics> model::Config for WeightConfig<D> {
     type Cpu4Cpu1aWeights = memory::weights::DynamicWeights<D, { N_CPU1A }, { N_CPU4 }>;
     type Cpu4Cpu1bWeights = memory::weights::DynamicWeights<D, { N_CPU1B }, { N_CPU4 }>;
     type Cpu4PontineWeights = memory::weights::DynamicWeights<D, { N_PONTINE }, { N_CPU4 }>;
+    type MemoryRecorder = PontineWeightMemoryRecorder;
 }
 
 pub fn create_weight_cx<'a, D: Dynamics>(
@@ -103,12 +108,30 @@ pub fn create_weight_linear_cx<'a>(
     )
 }
 
+pub fn create_weight_logistic_cx<'a>(
+    random: &'a Random,
+    h: f32,
+    w0: f32,
+    beta: f32,
+) -> CX<'a, WeightConfig<LogisticDynamics>> {
+    let dynamics = LogisticDynamics { h };
+    CX::new(
+        random,
+        0.15,
+        memory::weights::StatelessCpu4::new(beta),
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1A, WeightMatrix::repeat(w0)),
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1B, WeightMatrix::repeat(w0)),
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_PONTINE, WeightMatrix::repeat(w0)),
+    )
+}
+
 pub struct Setup {
     pub inbound_steps: usize,
     pub outbound_steps: usize,
     pub vary_speed: bool,
     pub acceleration_out: f32,
     pub acceleration_in: f32,
+    pub record_memory: bool,
 }
 
 impl Setup {
@@ -126,20 +149,32 @@ impl Setup {
 
 pub struct Result {
     pub physical_states: Vec<PhysicalState>,
+    pub memory_record: Option<Vec<SVector<f32, N_CPU4>>>,
 }
 
-pub fn run_homing_trial(
+pub fn run_homing_trial<C: Config>(
     setup: &Setup,
-    cx: &mut CX<impl Config>,
+    cx: &mut CX<C>,
     outbound: Vec<PhysicalState>,
 ) -> Result {
     let mut physical_states = outbound;
+    let mut memory_record: Option<Vec<SVector<f32, N_CPU4>>> = if setup.record_memory {
+        Some(Vec::with_capacity(
+            setup.outbound_steps + setup.inbound_steps,
+        ))
+    } else {
+        None
+    };
 
     // Simulate the agent flying along the outbound path
     for state in
         &physical_states[..physical_states.len()-1 /* leave last state for start of homing */]
     {
         cx.update(&state);
+
+        if let Some(ref mut memory_record) = memory_record {
+            memory_record.push(C::MemoryRecorder::record(&cx));
+        }
     }
 
     // Let the agent home, using the model's motor output to steer
@@ -148,7 +183,14 @@ pub fn run_homing_trial(
         let physical_state = physical_states.last().unwrap();
         let motor = cx.update(physical_state);
         physical_states.push(physical_state.next(motor, setup.acceleration_in, DEFAULT_DRAG));
+
+        if let Some(ref mut memory_record) = memory_record {
+            memory_record.push(C::MemoryRecorder::record(&cx));
+        }
     }
 
-    Result { physical_states }
+    Result {
+        physical_states,
+        memory_record,
+    }
 }

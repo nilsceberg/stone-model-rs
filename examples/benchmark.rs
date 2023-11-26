@@ -12,6 +12,7 @@ fn main() {
         acceleration_out: 0.15,
         acceleration_in: 0.1,
         vary_speed: true,
+        record_memory: true,
     };
 
     let mut times = 0;

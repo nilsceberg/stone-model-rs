@@ -1,12 +1,20 @@
+use super::{constants::N_CPU4, Config, CX};
+use nalgebra::SVector;
+
 /// Reference implementation of memory acculumating in the CPU4 cells as in the Stone et al. (2017) paper.
 pub mod reference {
+    use nalgebra::SVector;
+
     use crate::{
         model::{
             constants::{self, CPU4_MEM_FADE, N_CPU4},
             network::{ActivityVector, Layer},
+            Config, CX,
         },
         util::Random,
     };
+
+    use super::MemoryRecorder;
 
     pub struct AbstractCpu4 {
         memory: ActivityVector<{ N_CPU4 }>,
@@ -37,18 +45,30 @@ pub mod reference {
             )
         }
     }
+
+    pub struct AbstractMemoryRecorder;
+    impl<C: Config<Cpu4Layer = AbstractCpu4>> MemoryRecorder<C> for AbstractMemoryRecorder {
+        fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }> {
+            cx.cpu4_layer.memory
+        }
+    }
 }
 
 pub mod weights {
     use std::fmt::Debug;
 
+    use nalgebra::SVector;
+
     use crate::{
         model::{
             constants::{self, N_CPU4},
             network::{ActivityVector, Layer, WeightMatrix, Weights},
+            Config, CX,
         },
         util::Random,
     };
+
+    use super::MemoryRecorder;
 
     pub trait Dynamics: Clone {
         fn dwdt(&self, w: f32, r: f32) -> f32;
@@ -66,17 +86,15 @@ pub mod weights {
         }
     }
 
-    //#[derive(Clone)]
-    //pub struct LogisticDynamics {
-    //    pub : f32,
-    //}
-    //impl Dynamics for LinearDynamics {
-    //    fn dwdt(&self, _w: f32, r: f32) -> f32 {
-    //        const H: f32 = 0.0025;
-    //        let k: f32 = 0.125 + self.beta;
-    //        H * (-k + r)
-    //    }
-    //}
+    #[derive(Clone)]
+    pub struct LogisticDynamics {
+        pub h: f32,
+    }
+    impl Dynamics for LogisticDynamics {
+        fn dwdt(&self, w: f32, r: f32) -> f32 {
+            self.h * r * w * (1.0 - w)
+        }
+    }
 
     pub struct DynamicWeights<D: Dynamics, const TO: usize, const FROM: usize> {
         dynamics: D,
@@ -120,6 +138,10 @@ pub mod weights {
 
             &self.weights
         }
+
+        fn matrix(&self) -> &WeightMatrix<{ TO }, { FROM }> {
+            &self.weights
+        }
     }
 
     impl<D: Dynamics, const TO: usize, const FROM: usize> Debug
@@ -156,4 +178,15 @@ pub mod weights {
                 .map(|x| (x + self.beta).clamp(0.0, 1.0))
         }
     }
+
+    pub struct PontineWeightMemoryRecorder;
+    impl<C: Config> MemoryRecorder<C> for PontineWeightMemoryRecorder {
+        fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }> {
+            cx.w_cpu4_pontine.matrix().diagonal()
+        }
+    }
+}
+
+pub trait MemoryRecorder<C: Config> {
+    fn record(cx: &CX<C>) -> SVector<f32, { N_CPU4 }>;
 }
