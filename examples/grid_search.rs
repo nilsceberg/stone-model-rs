@@ -27,10 +27,10 @@ fn main() {
             let random = Random::new(0.1, 0.0, None);
             let mut distances = Vec::with_capacity(samples);
             for _ in 0..samples {
-                let mut setup = setup.clone();
-                setup.outbound_steps = 1000 + (random.rng().next_u32() as usize) % 1000;
+                //let mut setup = setup.clone();
+                //setup.outbound_steps = 1000 + (random.rng().next_u32() as usize) % 1000;
                 let outbound = setup.generate_outbound(&random);
-                let mut cx = create_weight_logistic_cx(&random, h, w0, beta);
+                let mut cx = create_weight_logistic_amp_cx(&random, h, w0, beta);
                 let result = run_homing_trial(&setup, &mut cx, outbound);
                 let stats = FlightStats::analyze(&setup, &result);
                 distances.push(stats.min_distance_to_home);

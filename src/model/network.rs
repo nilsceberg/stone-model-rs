@@ -25,6 +25,17 @@ impl<const N: usize> Layer<N> for PassthroughLayer {
     }
 }
 
+pub struct SigmoidLayer {
+    pub slope: f32,
+    pub bias: f32,
+}
+
+impl<const N: usize> Layer<N> for SigmoidLayer {
+    fn update(&mut self, input: ActivityVector<N>, random: &Random) -> ActivityVector<N> {
+        random.noisy_sigmoid(&input, self.slope, self.bias)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct StaticWeights<const TO: usize, const FROM: usize>(pub WeightMatrix<TO, FROM>);
 

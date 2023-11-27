@@ -29,9 +29,8 @@ pub const TB1_BIAS_TUNED: f32 = 0.0;
 pub const CPU4_SLOPE_TUNED: f32 = 5.0;
 pub const CPU4_BIAS_TUNED: f32 = 2.5;
 
-// Non-pontine:
-//pub const cpu1_slope_tuned: f64 = 5.0;
-//pub const cpu1_bias_tuned: f64 = 2.5;
+pub const AMP_SLOPE_TUNED: f32 = 100.0;
+pub const AMP_BIAS_TUNED: f32 = 0.0;
 
 pub const CPU1_BIAS_TUNED: f32 = -1.0;
 pub const CPU1_SLOPE_TUNED: f32 = 7.5;

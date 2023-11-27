@@ -3,14 +3,14 @@ use std::marker::PhantomData;
 
 use model::{
     connectomics::{W_CPU4_AMP, W_CPU4_PONTINE},
-    constants::{N_AMP, N_CPU4, N_PONTINE},
+    constants::{AMP_BIAS_TUNED, AMP_SLOPE_TUNED, N_AMP, N_CPU4, N_PONTINE},
     memory::{
         self,
         reference::AbstractMemoryRecorder,
         weights::{Dynamics, LinearDynamics, LogisticDynamics, PontineWeightMemoryRecorder},
         MemoryRecorder,
     },
-    network::{PassthroughLayer, StaticWeights, WeightMatrix},
+    network::{PassthroughLayer, SigmoidLayer, StaticWeights, WeightMatrix},
     Config, CX,
 };
 use movement::{PhysicalState, DEFAULT_DRAG};
@@ -48,6 +48,15 @@ pub struct WeightConfig<D: Dynamics>(PhantomData<D>);
 impl<D: Dynamics> model::Config for WeightConfig<D> {
     type Cpu4Layer = memory::weights::StatelessCpu4;
     type AmpLayer = PassthroughLayer;
+    type Cpu4AmpWeights = memory::weights::DynamicWeights<D, N_AMP, N_CPU4>;
+    type Cpu4PontineWeights = memory::weights::DynamicWeights<D, N_PONTINE, N_CPU4>;
+    type MemoryRecorder = PontineWeightMemoryRecorder;
+}
+
+pub struct WeightAmpConfig<D: Dynamics>(PhantomData<D>);
+impl<D: Dynamics> model::Config for WeightAmpConfig<D> {
+    type Cpu4Layer = memory::weights::StatelessCpu4;
+    type AmpLayer = SigmoidLayer;
     type Cpu4AmpWeights = memory::weights::DynamicWeights<D, N_AMP, N_CPU4>;
     type Cpu4PontineWeights = memory::weights::DynamicWeights<D, N_PONTINE, N_CPU4>;
     type MemoryRecorder = PontineWeightMemoryRecorder;
@@ -114,6 +123,26 @@ pub fn create_weight_logistic_cx<'a>(
         0.25,
         memory::weights::StatelessCpu4::new(beta),
         PassthroughLayer,
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_AMP, WeightMatrix::repeat(w0)),
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_PONTINE, WeightMatrix::repeat(w0)),
+    )
+}
+
+pub fn create_weight_logistic_amp_cx<'a>(
+    random: &'a Random,
+    h: f32,
+    w0: f32,
+    beta: f32,
+) -> CX<'a, WeightAmpConfig<LogisticDynamics>> {
+    let dynamics = LogisticDynamics { h };
+    CX::new(
+        random,
+        -0.25,
+        memory::weights::StatelessCpu4::new(beta),
+        SigmoidLayer {
+            slope: AMP_SLOPE_TUNED,
+            bias: AMP_BIAS_TUNED,
+        },
         memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_AMP, WeightMatrix::repeat(w0)),
         memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_PONTINE, WeightMatrix::repeat(w0)),
     )
