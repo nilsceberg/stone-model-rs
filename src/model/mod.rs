@@ -12,13 +12,13 @@ use crate::{movement::PhysicalState, util::Random};
 use constants::{N_CL1, N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE, N_TB1, N_TL2, N_TN1, N_TN2};
 use network::*;
 
-use self::memory::MemoryRecorder;
+use self::{constants::N_AMP, memory::MemoryRecorder};
 
 pub trait Config: Sized {
     type Cpu4Layer: Layer<N_CPU4>;
-    type Cpu4Cpu1aWeights: Weights<N_CPU1A, N_CPU4>;
-    type Cpu4Cpu1bWeights: Weights<N_CPU1B, N_CPU4>;
+    type Cpu4AmpWeights: Weights<N_AMP, N_CPU4>;
     type Cpu4PontineWeights: Weights<N_PONTINE, N_CPU4>;
+    type AmpLayer: Layer<N_AMP>;
     type MemoryRecorder: MemoryRecorder<Self>;
 }
 
@@ -33,18 +33,20 @@ pub struct CX<'a, C: Config> {
     pub w_tn1_cpu4: StaticWeights<N_CPU4, N_TN1>,
     pub w_tn2_cpu4: StaticWeights<N_CPU4, N_TN2>,
 
-    pub w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
-    pub w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
     pub w_cpu4_pontine: C::Cpu4PontineWeights,
+    pub w_cpu4_amp: C::Cpu4AmpWeights,
 
-    pub w_pontine_cpu1a: StaticWeights<N_CPU1A, N_PONTINE>,
-    pub w_pontine_cpu1b: StaticWeights<N_CPU1B, N_PONTINE>,
+    pub w_pontine_amp: StaticWeights<N_AMP, N_PONTINE>,
+
+    pub w_amp_cpu1a: StaticWeights<N_CPU1A, N_AMP>,
+    pub w_amp_cpu1b: StaticWeights<N_CPU1B, N_AMP>,
 
     pub w_cpu1a_motor: StaticWeights<2, N_CPU1A>,
     pub w_cpu1b_motor: StaticWeights<2, N_CPU1B>,
 
     pub tb1: ActivityVector<N_TB1>,
     pub cpu4_layer: C::Cpu4Layer,
+    pub amp_layer: C::AmpLayer,
 
     turn_sharpness: f32,
 
@@ -58,8 +60,8 @@ impl<'a, C: Config> CX<'a, C> {
         random: &'a Random,
         turn_sharpness: f32,
         cpu4: C::Cpu4Layer,
-        w_cpu4_cpu1a: C::Cpu4Cpu1aWeights,
-        w_cpu4_cpu1b: C::Cpu4Cpu1bWeights,
+        amp: C::AmpLayer,
+        w_cpu4_amp: C::Cpu4AmpWeights,
         w_cpu4_pontine: C::Cpu4PontineWeights,
     ) -> Self {
         CX {
@@ -73,18 +75,20 @@ impl<'a, C: Config> CX<'a, C> {
             w_tn1_cpu4: StaticWeights::noisy(random, &connectomics::W_TN1_CPU4),
             w_tn2_cpu4: StaticWeights::noisy(random, &connectomics::W_TN2_CPU4),
 
-            w_cpu4_cpu1a,
-            w_cpu4_cpu1b,
+            w_cpu4_amp,
             w_cpu4_pontine,
 
-            w_pontine_cpu1a: StaticWeights::noisy(random, &connectomics::W_PONTINE_CPU1A),
-            w_pontine_cpu1b: StaticWeights::noisy(random, &connectomics::W_PONTINE_CPU1B),
+            w_pontine_amp: StaticWeights::noisy(random, &connectomics::W_PONTINE_AMP),
+
+            w_amp_cpu1a: StaticWeights::noisy(random, &connectomics::W_AMP_CPU1A),
+            w_amp_cpu1b: StaticWeights::noisy(random, &connectomics::W_AMP_CPU1B),
 
             w_cpu1a_motor: StaticWeights::noisy(random, &connectomics::W_CPU1A_MOTOR),
             w_cpu1b_motor: StaticWeights::noisy(random, &connectomics::W_CPU1B_MOTOR),
 
             tb1: ActivityVector::zeros(),
             cpu4_layer: cpu4,
+            amp_layer: amp,
 
             turn_sharpness,
 
@@ -112,8 +116,9 @@ impl<'a, C: Config> CX<'a, C> {
 
         // Steering system
         let pontine = self.pontine_output(&cpu4);
-        let cpu1a = self.cpu1a_output(&cpu4, &pontine);
-        let cpu1b = self.cpu1b_output(&cpu4, &pontine);
+        let amp = self.amp_output(&cpu4, &pontine);
+        let cpu1a = self.cpu1a_output(&amp);
+        let cpu1b = self.cpu1b_output(&amp);
 
         self.turn_sharpness * self.motor_output(&cpu1a, &cpu1b)
     }
@@ -199,14 +204,19 @@ impl<'a, C: Config> CX<'a, C> {
         )
     }
 
-    fn cpu1a_output(
+    fn amp_output(
         &mut self,
         cpu4: &ActivityVector<N_CPU4>,
         pontine: &ActivityVector<N_PONTINE>,
-    ) -> ActivityVector<N_CPU1A> {
-        let input = 0.5 * self.w_cpu4_cpu1a.update(&cpu4) * cpu4
-            - 0.5 * self.w_pontine_cpu1a.matrix() * pontine
-            - self.w_tb1_cpu1a.matrix() * self.tb1;
+    ) -> ActivityVector<N_AMP> {
+        let input = 0.5 * self.w_cpu4_amp.update(&cpu4) * cpu4
+            - 0.5 * self.w_pontine_amp.matrix() * pontine;
+
+        self.amp_layer.update(input, &self.random)
+    }
+
+    fn cpu1a_output(&mut self, amp: &ActivityVector<N_AMP>) -> ActivityVector<N_CPU1A> {
+        let input = self.w_amp_cpu1a.update(&amp) * amp - self.w_tb1_cpu1a.matrix() * self.tb1;
 
         self.random.noisy_sigmoid(
             &input,
@@ -215,14 +225,8 @@ impl<'a, C: Config> CX<'a, C> {
         )
     }
 
-    fn cpu1b_output(
-        &mut self,
-        cpu4: &ActivityVector<N_CPU4>,
-        pontine: &ActivityVector<N_PONTINE>,
-    ) -> ActivityVector<N_CPU1B> {
-        let input = 0.5 * self.w_cpu4_cpu1b.update(&cpu4) * cpu4
-            - 0.5 * self.w_pontine_cpu1b.matrix() * pontine
-            - self.w_tb1_cpu1b.matrix() * self.tb1;
+    fn cpu1b_output(&mut self, amp: &ActivityVector<N_AMP>) -> ActivityVector<N_CPU1B> {
+        let input = self.w_amp_cpu1b.update(&amp) * amp - self.w_tb1_cpu1b.matrix() * self.tb1;
 
         self.random.noisy_sigmoid(
             &input,

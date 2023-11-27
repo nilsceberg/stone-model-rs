@@ -14,7 +14,15 @@ pub trait Weights<const TO: usize, const FROM: usize>: Debug {
 }
 
 pub trait Layer<const N: usize> {
-    fn update(&mut self, input: ActivityVector<N>, noise: &Random) -> ActivityVector<N>;
+    fn update(&mut self, input: ActivityVector<N>, random: &Random) -> ActivityVector<N>;
+}
+
+pub struct PassthroughLayer;
+
+impl<const N: usize> Layer<N> for PassthroughLayer {
+    fn update(&mut self, input: ActivityVector<N>, _random: &Random) -> ActivityVector<N> {
+        input
+    }
 }
 
 #[derive(Clone, Debug)]

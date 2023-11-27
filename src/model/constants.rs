@@ -11,6 +11,7 @@ pub const N_TN1: usize = 2;
 pub const N_TN2: usize = 2;
 pub const N_CPU4: usize = 16;
 pub const N_PONTINE: usize = 16;
+pub const N_AMP: usize = 16;
 pub const N_CPU1A: usize = 14;
 pub const N_CPU1B: usize = 2;
 pub const N_CPU1: usize = N_CPU1A + N_CPU1B;

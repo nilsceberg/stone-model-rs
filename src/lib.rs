@@ -2,15 +2,15 @@ use serde::Serialize;
 use std::marker::PhantomData;
 
 use model::{
-    connectomics::{W_CPU4_CPU1A, W_CPU4_CPU1B, W_CPU4_PONTINE},
-    constants::{N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE},
+    connectomics::{W_CPU4_AMP, W_CPU4_PONTINE},
+    constants::{N_AMP, N_CPU4, N_PONTINE},
     memory::{
         self,
         reference::AbstractMemoryRecorder,
         weights::{Dynamics, LinearDynamics, LogisticDynamics, PontineWeightMemoryRecorder},
         MemoryRecorder,
     },
-    network::{StaticWeights, WeightMatrix},
+    network::{PassthroughLayer, StaticWeights, WeightMatrix},
     Config, CX,
 };
 use movement::{PhysicalState, DEFAULT_DRAG};
@@ -27,8 +27,8 @@ pub const COMMON_SEED: Option<u64> = Some(64172527321326);
 pub struct ReferenceConfig;
 impl model::Config for ReferenceConfig {
     type Cpu4Layer = memory::reference::AbstractCpu4;
-    type Cpu4Cpu1aWeights = StaticWeights<N_CPU1A, N_CPU4>;
-    type Cpu4Cpu1bWeights = StaticWeights<N_CPU1B, N_CPU4>;
+    type AmpLayer = PassthroughLayer;
+    type Cpu4AmpWeights = StaticWeights<N_AMP, N_CPU4>;
     type Cpu4PontineWeights = StaticWeights<N_PONTINE, N_CPU4>;
     type MemoryRecorder = AbstractMemoryRecorder;
 }
@@ -38,8 +38,8 @@ pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
         random,
         0.25,
         memory::reference::AbstractCpu4::new(),
-        StaticWeights::noisy(random, &W_CPU4_CPU1A),
-        StaticWeights::noisy(random, &W_CPU4_CPU1B),
+        PassthroughLayer,
+        StaticWeights::noisy(random, &W_CPU4_AMP),
         StaticWeights::noisy(random, &W_CPU4_PONTINE),
     )
 }
@@ -47,8 +47,8 @@ pub fn create_reference_cx<'a>(random: &'a Random) -> CX<'a, ReferenceConfig> {
 pub struct WeightConfig<D: Dynamics>(PhantomData<D>);
 impl<D: Dynamics> model::Config for WeightConfig<D> {
     type Cpu4Layer = memory::weights::StatelessCpu4;
-    type Cpu4Cpu1aWeights = memory::weights::DynamicWeights<D, N_CPU1A, N_CPU4>;
-    type Cpu4Cpu1bWeights = memory::weights::DynamicWeights<D, N_CPU1B, N_CPU4>;
+    type AmpLayer = PassthroughLayer;
+    type Cpu4AmpWeights = memory::weights::DynamicWeights<D, N_AMP, N_CPU4>;
     type Cpu4PontineWeights = memory::weights::DynamicWeights<D, N_PONTINE, N_CPU4>;
     type MemoryRecorder = PontineWeightMemoryRecorder;
 }
@@ -64,14 +64,10 @@ pub fn create_weight_cx<'a, D: Dynamics>(
         random,
         turn_sharpness,
         memory::weights::StatelessCpu4::new(beta),
+        PassthroughLayer,
         memory::weights::DynamicWeights::new(
             dynamics,
-            &W_CPU4_CPU1A,
-            WeightMatrix::repeat(initial_weight),
-        ),
-        memory::weights::DynamicWeights::new(
-            dynamics,
-            &W_CPU4_CPU1B,
+            &W_CPU4_AMP,
             WeightMatrix::repeat(initial_weight),
         ),
         memory::weights::DynamicWeights::new(
@@ -92,14 +88,10 @@ pub fn create_weight_linear_cx<'a>(
         random,
         0.15,
         memory::weights::StatelessCpu4::new(beta),
+        PassthroughLayer,
         memory::weights::DynamicWeights::new(
             &dynamics,
-            &W_CPU4_CPU1A,
-            WeightMatrix::repeat(initial_weight),
-        ),
-        memory::weights::DynamicWeights::new(
-            &dynamics,
-            &W_CPU4_CPU1B,
+            &W_CPU4_AMP,
             WeightMatrix::repeat(initial_weight),
         ),
         memory::weights::DynamicWeights::new(
@@ -119,10 +111,10 @@ pub fn create_weight_logistic_cx<'a>(
     let dynamics = LogisticDynamics { h };
     CX::new(
         random,
-        0.2,
+        0.25,
         memory::weights::StatelessCpu4::new(beta),
-        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1A, WeightMatrix::repeat(w0)),
-        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_CPU1B, WeightMatrix::repeat(w0)),
+        PassthroughLayer,
+        memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_AMP, WeightMatrix::repeat(w0)),
         memory::weights::DynamicWeights::new(&dynamics, &W_CPU4_PONTINE, WeightMatrix::repeat(w0)),
     )
 }
@@ -155,6 +147,12 @@ pub struct FlightData {
     pub setup: Setup,
     pub physical_states: Vec<PhysicalState>,
     pub memory_record: Option<Vec<SVector<f32, N_CPU4>>>,
+}
+
+impl FlightData {
+    pub fn print(&self) {
+        println!("{}", serde_json::to_string(&self).unwrap());
+    }
 }
 
 pub fn run_homing_trial<C: Config>(
