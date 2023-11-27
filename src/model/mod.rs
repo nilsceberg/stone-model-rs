@@ -196,6 +196,9 @@ impl<'a, C: Config> CX<'a, C> {
 
     fn pontine_output(&mut self, cpu4: &ActivityVector<N_CPU4>) -> ActivityVector<N_PONTINE> {
         let input = self.w_cpu4_pontine.update(&cpu4) * cpu4;
+
+        // TODO: does dye not work without removing this?
+        // input
         //print!("{:?}", self.w_cpu4_pontine);
         self.random.noisy_sigmoid(
             &input,
@@ -241,7 +244,7 @@ impl<'a, C: Config> CX<'a, C> {
         cpu1b: &ActivityVector<N_CPU1B>,
     ) -> f32 {
         let motor = self.w_cpu1a_motor.matrix() * cpu1a + self.w_cpu1b_motor.matrix() * cpu1b;
-        let output = motor[0] - motor[1];
-        output.clamp(-1.0, 1.0)
+        motor[0] - motor[1]
+        //output.clamp(-1.0, 1.0)
     }
 }

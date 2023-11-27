@@ -131,8 +131,10 @@ pub mod weights {
             for j in 0..FROM {
                 for i in 0..TO {
                     let index = j * TO + i;
-                    self.weights[index] += self.connectivity[index]
-                        * self.dynamics.dwdt(self.weights[index], input[j]);
+                    self.weights[index] = (self.weights[index]
+                        + self.connectivity[index]
+                            * self.dynamics.dwdt(self.weights[index], input[j]))
+                    .clamp(0.0, 1.0);
                 }
             }
 

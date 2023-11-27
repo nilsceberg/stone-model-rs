@@ -32,8 +32,8 @@ pub const CPU4_BIAS_TUNED: f32 = 2.5;
 pub const AMP_SLOPE_TUNED: f32 = 100.0;
 pub const AMP_BIAS_TUNED: f32 = 0.0;
 
-pub const CPU1_BIAS_TUNED: f32 = -1.0;
 pub const CPU1_SLOPE_TUNED: f32 = 7.5;
+pub const CPU1_BIAS_TUNED: f32 = -1.0;
 
 pub const PONTINE_SLOPE_TUNED: f32 = 5.0;
 pub const PONTINE_BIAS_TUNED: f32 = 2.5;

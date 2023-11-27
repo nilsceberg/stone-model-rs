@@ -28,9 +28,12 @@ upper, lower = right.subplots(2, 1, sharex=True)
 memory = np.array(flight["memory_record"])
 for i in range(util.n_mem):
     upper.plot(memory[:,i])
+#upper.set_ylim(0, 1)
+upper.set_ylabel("weight")
 upper.set_title("Memory over time")
 
 lower.pcolormesh(memory.T)
 lower.set_xlabel("time (steps)")
+lower.set_ylabel("column")
 
 plt.show()

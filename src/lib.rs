@@ -95,7 +95,7 @@ pub fn create_weight_linear_cx<'a>(
     let initial_weight = 0.5;
     CX::new(
         random,
-        0.15,
+        0.25,
         memory::weights::StatelessCpu4::new(beta),
         PassthroughLayer,
         memory::weights::DynamicWeights::new(
