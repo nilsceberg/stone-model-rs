@@ -7,7 +7,7 @@ use model::{
     memory::{
         self,
         reference::AbstractMemoryRecorder,
-        weights::{Dynamics, LinearDynamics, LogisticDynamics, PontineWeightMemoryRecorder},
+        weights::{AffineDynamics, Dynamics, LogisticDynamics, PontineWeightMemoryRecorder},
         MemoryRecorder,
     },
     network::{PassthroughLayer, SigmoidLayer, StaticWeights, WeightMatrix},
@@ -87,15 +87,15 @@ pub fn create_weight_cx<'a, D: Dynamics>(
     )
 }
 
-pub fn create_weight_linear_cx<'a>(
+pub fn create_weight_affine_cx<'a>(
     random: &'a Random,
     beta: f32,
-) -> CX<'a, WeightConfig<LinearDynamics>> {
-    let dynamics = LinearDynamics { beta };
+) -> CX<'a, WeightConfig<AffineDynamics>> {
+    let dynamics = AffineDynamics { beta };
     let initial_weight = 0.5;
     CX::new(
         random,
-        0.25,
+        0.5,
         memory::weights::StatelessCpu4::new(beta),
         PassthroughLayer,
         memory::weights::DynamicWeights::new(

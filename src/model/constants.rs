@@ -38,6 +38,9 @@ pub const CPU1_BIAS_TUNED: f32 = -1.0;
 pub const PONTINE_SLOPE_TUNED: f32 = 5.0;
 pub const PONTINE_BIAS_TUNED: f32 = 2.5;
 
+pub const PONTINE_SLOPE_TUNED_LINEAR: f32 = 1.0;
+pub const PONTINE_BIAS_TUNED_LINEAR: f32 = 0.0;
+
 pub const MOTOR_SLOPE_TUNED: f32 = 1.0;
 pub const MOTOR_BIAS_TUNED: f32 = 3.0;
 

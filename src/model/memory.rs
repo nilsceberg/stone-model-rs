@@ -75,10 +75,10 @@ pub mod weights {
     }
 
     #[derive(Clone)]
-    pub struct LinearDynamics {
+    pub struct AffineDynamics {
         pub beta: f32,
     }
-    impl Dynamics for LinearDynamics {
+    impl Dynamics for AffineDynamics {
         fn dwdt(&self, _w: f32, r: f32) -> f32 {
             const H: f32 = 0.0025;
             let k: f32 = 0.125 + self.beta;

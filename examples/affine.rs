@@ -12,7 +12,7 @@ fn main() {
     };
 
     let outbound = setup.generate_outbound(&random);
-    let mut cx = create_weight_linear_cx(&random, 0.5);
+    let mut cx = create_weight_affine_cx(&random, 0.5);
     let result = run_homing_trial(&setup, &mut cx, outbound);
 
     result.print();

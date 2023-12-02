@@ -6,6 +6,26 @@ use rand_distr::{Distribution, Normal};
 
 use super::model::network::{ActivityVector, WeightMatrix};
 
+pub mod activation {
+    use crate::model::network::ActivityVector;
+
+    pub fn sigmoid<const N: usize>(
+        inputs: &ActivityVector<{ N }>,
+        slope: f32,
+        bias: f32,
+    ) -> ActivityVector<{ N }> {
+        inputs.map(|x| 1.0 / (1.0 + (-(x * slope - bias)).exp()))
+    }
+
+    pub fn linear<const N: usize>(
+        inputs: &ActivityVector<{ N }>,
+        slope: f32,
+        bias: f32,
+    ) -> ActivityVector<{ N }> {
+        inputs.map(|x| (x * slope - bias).clamp(0.0, 1.0))
+    }
+}
+
 pub struct Random {
     rng: RefCell<SmallRng>,
     activity_noise: Normal<f32>,
@@ -56,13 +76,19 @@ impl Random {
 
     pub fn noisy_sigmoid<const N: usize>(
         &self,
-        activity: &ActivityVector<{ N }>,
+        inputs: &ActivityVector<{ N }>,
         slope: f32,
         bias: f32,
     ) -> ActivityVector<{ N }> {
-        self.noisify(
-            &self.activity_noise,
-            &activity.map(|x| 1.0 / (1.0 + (-(x * slope - bias)).exp())),
-        )
+        self.noisify_activity(&activation::sigmoid(&inputs, slope, bias))
+    }
+
+    pub fn noisy_linear<const N: usize>(
+        &self,
+        inputs: &ActivityVector<{ N }>,
+        slope: f32,
+        bias: f32,
+    ) -> ActivityVector<{ N }> {
+        self.noisify_activity(&activation::linear(&inputs, slope, bias))
     }
 }

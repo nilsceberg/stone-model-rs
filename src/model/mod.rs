@@ -8,7 +8,10 @@ pub mod network;
 use nalgebra::{matrix, SVector, Vector2};
 use ndarray::{prelude::*, Axis};
 
-use crate::{movement::PhysicalState, util::Random};
+use crate::{
+    movement::PhysicalState,
+    util::{self, Random},
+};
 use constants::{N_CL1, N_CPU1A, N_CPU1B, N_CPU4, N_PONTINE, N_TB1, N_TL2, N_TN1, N_TN2};
 use network::*;
 
@@ -134,8 +137,9 @@ impl<'a, C: Config> CX<'a, C> {
     }
 
     fn get_flow(&self, PhysicalState { heading, velocity }: &PhysicalState) -> Vector2<f32> {
-        let right = heading + self.tn_prefs;
-        let left = heading - self.tn_prefs;
+        // TODO: figure out what this is supposed to be (currently opposite Stone?)
+        let right = heading - self.tn_prefs;
+        let left = heading + self.tn_prefs;
         let sensitivity = matrix![
             right.sin(), right.cos();
             left.sin(), left.cos();
@@ -197,13 +201,16 @@ impl<'a, C: Config> CX<'a, C> {
     fn pontine_output(&mut self, cpu4: &ActivityVector<N_CPU4>) -> ActivityVector<N_PONTINE> {
         let input = self.w_cpu4_pontine.update(&cpu4) * cpu4;
 
-        // TODO: does dye not work without removing this?
-        // input
-        //print!("{:?}", self.w_cpu4_pontine);
-        self.random.noisy_sigmoid(
+        // The activation function has been changed from a sigmoid
+        // that is approximately linear in [0, 1] to a rectified linear curve
+        // to work with the amplification layer, which requires the means of the inputs to cancel out.
+        // To be fair to the original model, it gets this update as well.
+
+        //self.random.noisy_linear(
+        util::activation::linear(
             &input,
-            constants::PONTINE_SLOPE_TUNED,
-            constants::PONTINE_BIAS_TUNED,
+            constants::PONTINE_SLOPE_TUNED_LINEAR,
+            constants::PONTINE_BIAS_TUNED_LINEAR,
         )
     }
 
@@ -245,6 +252,5 @@ impl<'a, C: Config> CX<'a, C> {
     ) -> f32 {
         let motor = self.w_cpu1a_motor.matrix() * cpu1a + self.w_cpu1b_motor.matrix() * cpu1b;
         motor[0] - motor[1]
-        //output.clamp(-1.0, 1.0)
     }
 }
